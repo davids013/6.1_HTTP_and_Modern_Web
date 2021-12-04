@@ -7,9 +7,11 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 
 public class ServerTask implements Runnable {
+    private final Server server;
     private final Socket socket;
 
-    public ServerTask(Socket socket) {
+    public ServerTask(Server server, Socket socket) {
+        this.server = server;
         this.socket = socket;
         System.out.println("\tNew connection");
     }
@@ -20,13 +22,20 @@ public class ServerTask implements Runnable {
                 final BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                 final BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream())
         ) {
-            System.out.println("new connection");
             final String requestLine = in.readLine();
             if (requestLine == null) {
-                System.out.println("Requested null");
+                System.out.println("Null requested");
                 return;
             }
+
             System.out.println(requestLine);
+            final Request request = Request.parseRequest(requestLine);
+            if (server.handlers.containsKey(request.getMethod() + " " + request.getHeaders().get(0))) {
+                server.handlers.get(request.getMethod() + " " + request.getHeaders().get(0))
+                        .handle(request, out);
+                return;
+            }
+
             final String[] parts = requestLine.split(" ");
 
             if (parts.length != 3) {
@@ -35,8 +44,10 @@ public class ServerTask implements Runnable {
                 return;
             }
 
-            final String path = parts[1];
-            if (!Server.validPaths.contains(path)) {
+            final String path =
+                    request.getHeaders().get(0);
+//                    parts[1];
+            if (!server.getValidPaths().contains(path)) {
                 final String response = "HTTP/1.1 404 Not Found\r\n" +
                         "Content-Length: 0\r\n" +
                         "Connection: close\r\n" +
