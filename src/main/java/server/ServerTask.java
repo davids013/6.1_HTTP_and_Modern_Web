@@ -36,17 +36,15 @@ public class ServerTask implements Runnable {
                 return;
             }
 
-            final String[] parts = requestLine.split(" ");
+//            final String[] parts = requestLine.split(" ");
+//
+//            if (parts.length != 3) {
+//                // just close socket
+//                System.out.println("Not 3 request parts");
+//                return;
+//            }
 
-            if (parts.length != 3) {
-                // just close socket
-                System.out.println("Not 3 request parts");
-                return;
-            }
-
-            final String path =
-                    request.getHeaders().get(0);
-//                    parts[1];
+            final String path = request.getHeaders().get(0);
             if (!server.getValidPaths().contains(path)) {
                 final String response = "HTTP/1.1 404 Not Found\r\n" +
                         "Content-Length: 0\r\n" +

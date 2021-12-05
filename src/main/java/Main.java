@@ -6,11 +6,11 @@ import java.nio.file.Path;
 
 public class Main {
     public static void main(String[] args) {
-        Server server = new Server();
-
+        final int PORT = 9999;
+        final Server server = new Server();
 
         server.addHandler("GET", "/messages", (request, responseStream) -> {
-            System.out.println("Header for \"GET /messages\" called");
+            System.out.println("Handler for \"GET /messages\" called");
             try {
                 final Path filePath = Path.of(".", "public", "/messages.html");
                 final String mimeType = Files.probeContentType(filePath);
@@ -29,8 +29,7 @@ public class Main {
         });
 
         server.addHandler("POST", "/messages", (request, responseStream) -> {
-            // TODO: handlers code
-            System.out.println("Header for \"POST /messages\" called");
+            System.out.println("Handler for \"POST /messages\" called");
             try {
                 final Path filePath = Path.of(".", "public", "/post.html");
                 final String mimeType = Files.probeContentType(filePath);
@@ -48,7 +47,6 @@ public class Main {
             }
         });
 
-        server.listen(9999);
+        server.listen(PORT);
     }
-
 }

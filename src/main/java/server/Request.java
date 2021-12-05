@@ -35,7 +35,6 @@ public class Request {
                     ? requestStr.length()
                     : requestStr.indexOf(LINE_SEPARATOR);
             final String requestLine = requestStr.substring(0, requestLastIndex);
-            System.out.println(requestLine);
             final String method = requestLine.substring(0, requestLine.indexOf(METHOD_SEPARATOR));
             final List<String> headers = new ArrayList<>();
             final List<String> bodies = new ArrayList<>();
