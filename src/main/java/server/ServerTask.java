@@ -30,8 +30,8 @@ public class ServerTask implements Runnable {
 
             System.out.println(requestLine);
             final Request request = Request.parseRequest(requestLine);
-            if (server.handlers.containsKey(request.getMethod() + " " + request.getHeaders().get(0))) {
-                server.handlers.get(request.getMethod() + " " + request.getHeaders().get(0))
+            if (server.handlers.containsKey(request.getMethod() + " " + request.getPath())) {
+                server.handlers.get(request.getMethod() + " " + request.getPath())
                         .handle(request, out);
                 return;
             }
@@ -44,7 +44,7 @@ public class ServerTask implements Runnable {
 //                return;
 //            }
 
-            final String path = request.getHeaders().get(0);
+            final String path = request.getPath();
             if (!server.getValidPaths().contains(path)) {
                 final String response = "HTTP/1.1 404 Not Found\r\n" +
                         "Content-Length: 0\r\n" +
