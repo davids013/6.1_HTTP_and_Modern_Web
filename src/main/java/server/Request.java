@@ -23,10 +23,10 @@ public class Request {
     private final String path;
     private final String httpVersion;
     private final Map<String, String> headers;
-    private final String body;
+    private final InputStream body;
     private final List<NameValuePair> queryParams;
 
-    private Request(String requestLine, Map<String, String> headers, String body) {
+    private Request(String requestLine, Map<String, String> headers, InputStream body) {
         this.requestLine = requestLine;
         this.headers = headers == null ? new HashMap<>() : headers;
         this.body = body;
@@ -57,10 +57,6 @@ public class Request {
 
     public Map<String, String> getHeaders() {
         return headers;
-    }
-
-    public String getBody() {
-        return body;
     }
 
     public String getRequestLine() {
@@ -95,7 +91,7 @@ public class Request {
             final String value = line.substring(index + 2);
             headers.put(key, value);
         }
-        return new Request(requestLine, headers, "");
+        return new Request(requestLine, headers, inputStream);
     }
 
 //    public static Request parseRequest(String requestStr) throws IOException {
