@@ -46,7 +46,6 @@ public class ServerTask implements Runnable {
             final Path filePath = Path.of(".", "public", path);
             final String mimeType = Files.probeContentType(filePath);
 
-            // special case for classic
             if (path.equals("/classic.html")) {
                 final String template = Files.readString(filePath);
                 final byte[] content = template.replace(

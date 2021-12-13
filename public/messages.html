@@ -10,9 +10,17 @@
 <body>
   <h1>Messages</h1>
   <h3>There are no messages yet. Coming back soon</h3>
-  <h2>Click to send a test POST-request</h2>
+  <h2>Click to send a GET query-request</h2>
+  <form action="./messages">
+    <input name="age"/>
+    <input name="country"/>
+    <input type="submit" value="Click to GET"/>
+  </form>
+  <h2>Click to send a POST query-request</h2>
   <form action="./messages" method="post">
-    <input type="submit" value="Click me" />
+    <input name="age"/>
+    <input name="country"/>
+    <input type="submit" value="Click to POST"/>
   </form>
 </body>
 </html>

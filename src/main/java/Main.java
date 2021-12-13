@@ -1,3 +1,4 @@
+import server.Request;
 import server.Server;
 
 import java.io.IOException;
@@ -50,5 +51,11 @@ public class Main {
         });
 
         server.listen(PORT);
+//        test();
+    }
+
+    private static void test() {
+        String s1 = "age=6%D0%BD%D0%B3&country=qaz";
+        System.out.println(Request.parsePostParams(s1));
     }
 }
