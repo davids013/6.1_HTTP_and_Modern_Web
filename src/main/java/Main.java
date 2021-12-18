@@ -34,7 +34,7 @@ public class Main {
         server.addHandler("POST", "/messages", (request, responseStream) -> {
             System.out.println("Handler for \"POST /messages\" called");
             try {
-                final Path filePath = Path.of(".", "public", "/post.html");
+                final Path filePath = Path.of(".", "public", "/messages.html");
                 final String mimeType = Files.probeContentType(filePath);
                 final long length = Files.size(filePath);
                 final String response = "HTTP/1.1 200 OK\r\n" +
@@ -51,11 +51,5 @@ public class Main {
         });
 
         server.listen(PORT);
-//        test();
-    }
-
-    private static void test() {
-        String s1 = "age=6%D0%BD%D0%B3&country=qaz";
-        System.out.println(Request.parsePostParams(s1));
     }
 }

@@ -1,5 +1,8 @@
 package server;
 
+import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.disk.DiskFileItemFactory;
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
@@ -29,6 +32,7 @@ public class Request {
         if (headers.containsKey("Content-Type")) {
             if (headers.get("Content-Type").equals("application/x-www-form-urlencoded")) {
                 postParams = parsePostParams(body);
+                System.out.println("Body of x-www-form -> " + body);
             } else postParams = new ArrayList<>();
         } else postParams = new ArrayList<>();
         final String[] parts = requestLine.split(METHOD_SEPARATOR);
@@ -96,15 +100,14 @@ public class Request {
             final String value = line.substring(index + 2);
             headers.put(key, value);
         }
-//        headers.keySet().forEach((key) -> System.out.println(key + " -> " + headers.get(key)));
+        headers.keySet().forEach((key) -> System.out.println(key + " -> " + headers.get(key)));
         String body = "";
+        char[] chars;
         if (headers.containsKey("Content-Length")) {
-            char[] chars = new char[Integer.parseInt(headers.get("Content-Length"))];
-            for (int i = 0; i < chars.length; i++) {
-                chars[i] = (char) in.read();
-            }
+            final int size = Integer.parseInt(headers.get("Content-Length"));
+            chars = new char[size];
+            in.read(chars, 0, size);
             body = new String(chars);
-//            System.out.println("body -> " + body);
         }
         return new Request(requestLine, headers, body);
     }
