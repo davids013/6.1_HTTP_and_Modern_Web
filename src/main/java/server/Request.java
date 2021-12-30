@@ -1,14 +1,19 @@
 package server;
 
-import org.apache.commons.fileupload.FileItem;
-import org.apache.commons.fileupload.disk.DiskFileItemFactory;
-import org.apache.commons.fileupload.servlet.ServletFileUpload;
+import org.apache.commons.fileupload.*;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
-import java.io.*;
+import javax.servlet.http.HttpServletRequest;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class Request {
     private static final String LINE_SEPARATOR = "\r\n";
@@ -24,11 +29,13 @@ public class Request {
     private final String body;
     private final List<NameValuePair> queryParams;
     private final List<NameValuePair> postParams;
+    private final List<FileItem> fileItems;
 
-    private Request(String requestLine, Map<String, String> headers, String body) {
+    private Request(String requestLine, Map<String, String> headers, String body, List<FileItem> fileItems) {
         this.requestLine = requestLine;
         this.headers = headers == null ? new HashMap<>() : headers;
-        this.body = body;
+        this.fileItems = fileItems == null ? new ArrayList<>() : fileItems;
+        this.body = body == null ? "" : body;
         if (headers.containsKey("Content-Type")) {
             if (headers.get("Content-Type").equals("application/x-www-form-urlencoded")) {
                 postParams = parsePostParams(body);
@@ -84,7 +91,7 @@ public class Request {
         return new ArrayList<>(postParams);
     }
 
-    public static Request fromInputStream(InputStream inputStream) throws IOException {
+    public static Request fromInputStream(InputStream inputStream) throws IOException, FileUploadException {
         final BufferedReader in = new BufferedReader(new InputStreamReader(inputStream));
         final String requestLine = in.readLine();
         System.out.println(">> " + requestLine);
@@ -102,14 +109,19 @@ public class Request {
         }
         headers.keySet().forEach((key) -> System.out.println(key + " -> " + headers.get(key)));
         String body = "";
-        char[] chars;
+        List<FileItem> files = null;
         if (headers.containsKey("Content-Length")) {
             final int size = Integer.parseInt(headers.get("Content-Length"));
-            chars = new char[size];
-            in.read(chars, 0, size);
-            body = new String(chars);
+            if (headers.containsKey("Content-Type") &&
+                    headers.get("Content-Type").contains("multipart/form-data")) {
+                parseMultipart(headers.get("Content-Type"), size, inputStream);
+            } else {
+                char[] chars = new char[size];
+                in.read(chars, 0, size);
+                body = new String(chars);
+            }
         }
-        return new Request(requestLine, headers, body);
+        return new Request(requestLine, headers, body, files);
     }
 
     public static List<NameValuePair> parseQueryParams(String query) {
@@ -120,5 +132,24 @@ public class Request {
 
     public static List<NameValuePair> parsePostParams(String post) {
         return parseQueryParams(post);
+    }
+
+    private static List<FileItem> parseMultipart(
+            String contentType, int contentLength, InputStream inputStream) {
+        System.out.println("\t\tIT'S MULTIPART !!!");
+        final RequestContext context = new Context(contentType, contentLength, inputStream);
+        System.out.println("\tContext created");
+        final FileUploadBase fileUpload = new FileUpload();
+        System.out.println("\tFileUpload created");
+        List<FileItem> files = null;
+        try {
+            files = fileUpload.parseRequest(context);
+        } catch (FileUploadException e) {
+            System.err.println("FileUploadException");
+            e.printStackTrace();
+        }
+        System.out.println("\t\tFILEITEMS:");
+        files.forEach(System.out::println);
+        return files;
     }
 }

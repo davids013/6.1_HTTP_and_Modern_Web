@@ -1,5 +1,7 @@
 package server;
 
+import org.apache.commons.fileupload.FileUploadException;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
@@ -73,7 +75,7 @@ public class ServerTask implements Runnable {
             Files.copy(filePath, out);
             out.flush();
 
-        } catch (IOException e) {
+        } catch (IOException | FileUploadException e) {
             e.printStackTrace();
         } finally {
             try {
