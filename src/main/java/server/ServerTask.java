@@ -75,7 +75,7 @@ public class ServerTask implements Runnable {
             Files.copy(filePath, out);
             out.flush();
 
-        } catch (IOException | FileUploadException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         } finally {
             try {
