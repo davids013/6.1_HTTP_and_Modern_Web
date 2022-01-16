@@ -1,5 +1,7 @@
 package server;
 
+import org.apache.commons.fileupload.FileUploadException;
+
 import java.io.*;
 import java.net.Socket;
 import java.nio.file.Files;
@@ -19,30 +21,18 @@ public class ServerTask implements Runnable {
     @Override
     public void run() {
         try (
-                final BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+//                final BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
+                final InputStream in = socket.getInputStream();
                 final BufferedOutputStream out = new BufferedOutputStream(socket.getOutputStream())
         ) {
-            final String requestLine = in.readLine();
-            if (requestLine == null) {
-                System.out.println("Null requested");
-                return;
-            }
 
-            System.out.println(requestLine);
-            final Request request = Request.parseRequest(requestLine);
+//            final Request request = Request.parseRequest(requestLine);
+            final Request request = Request.fromInputStream(in);
             if (server.handlers.containsKey(request.getMethod() + " " + request.getPath())) {
                 server.handlers.get(request.getMethod() + " " + request.getPath())
                         .handle(request, out);
                 return;
             }
-
-//            final String[] parts = requestLine.split(" ");
-//
-//            if (parts.length != 3) {
-//                // just close socket
-//                System.out.println("Not 3 request parts");
-//                return;
-//            }
 
             final String path = request.getPath();
             if (!server.getValidPaths().contains(path)) {
@@ -58,7 +48,6 @@ public class ServerTask implements Runnable {
             final Path filePath = Path.of(".", "public", path);
             final String mimeType = Files.probeContentType(filePath);
 
-            // special case for classic
             if (path.equals("/classic.html")) {
                 final String template = Files.readString(filePath);
                 final byte[] content = template.replace(
