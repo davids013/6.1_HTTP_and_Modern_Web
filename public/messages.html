@@ -9,10 +9,30 @@
 </head>
 <body>
   <h1>Messages</h1>
-  <h3>There are no messages yet. Coming back soon</h3>
-  <h2>Click to send a test POST-request</h2>
+  <h3>Сообщений пока нет. Возвращайтесь позже</h3>
+
+  <br/>
+  <h2>Отправка GET query-запроса</h2>
+  <form action="./messages">
+    <input name="age"/>
+    <input name="country"/>
+    <input type="submit" value="Послать GET query"/>
+  </form>
+
+  <br/>
+  <h2>Отправка POST query-запроса</h2>
   <form action="./messages" method="post">
-    <input type="submit" value="Click me" />
+    <input name="age"/>
+    <input name="country"/>
+    <input type="submit" value="Отправить POST query"/>
+  </form>
+
+  <br/>
+  <h2>Отправка Multipart запроса</h2>
+  <form method="POST" enctype="multipart/form-data" action="./messages">
+    Выберите файл для загрузки: <input type="file" name="upfile"><br/>
+    Добавьте примечание: <input type="text" name="note">
+    <input type="submit" value="ЗАГРУЗИТЬ">
   </form>
 </body>
 </html>
