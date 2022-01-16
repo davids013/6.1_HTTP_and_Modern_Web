@@ -1,4 +1,3 @@
-import server.Request;
 import server.Server;
 
 import java.io.IOException;
@@ -8,7 +7,9 @@ import java.nio.file.Path;
 public class Main {
     public static void main(String[] args) {
         final int PORT = 9999;
-        final Server server = new Server();
+        final int THREADS = 64;
+
+        final Server server = new Server(THREADS);
 
         server.addHandler("GET", "/messages", (request, responseStream) -> {
             System.out.println("Handler for \"GET /messages\" called");
