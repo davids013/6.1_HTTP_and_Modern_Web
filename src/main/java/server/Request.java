@@ -1,19 +1,14 @@
 package server;
 
 import org.apache.commons.fileupload.*;
+import org.apache.commons.fileupload.util.Streams;
 import org.apache.http.NameValuePair;
 import org.apache.http.client.utils.URLEncodedUtils;
 
 import javax.servlet.http.HttpServletRequest;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.nio.charset.StandardCharsets;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class Request {
     private static final String LINE_SEPARATOR = "\r\n";
@@ -119,26 +114,31 @@ public class Request {
                 size = Integer.parseInt(headers.get("Content-Length"));
                 System.out.println("Content-Length -> " + size);
             }
+            char[] chars = new char[size];
+            try {
+                in.read(chars, 0, size);
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            final String body = new String(chars);
             if (contentType.equals("application/x-www-form-urlencoded")) {
-                char[] chars = new char[size];
-                try {
-                    in.read(chars, 0, size);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                final String body = new String(chars);
                 postParameters = parsePostParams(body);
                 System.out.println("Post params x-www-form: " + postParameters);
-//            } else if (contentType.contains("multipart/form-data")) {
-//                char[] chars = new char[size];
-//                try {
-//                    in.read(chars, 0, size);
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//                final String body = new String(chars);
-//                System.out.println(body);
-////                multipart = parseMultipart(contentType, size, inputStream);
+            } else if (contentType.contains("multipart/form-data")) {
+                System.out.println(body);
+                multipart = parseMultipart(contentType, body);
+                System.out.println("FileItems found: " + multipart.size());
+                for (int i = 0; i < multipart.size(); i++) {
+                    final FileItem item = multipart.get(i);
+                    final String ct = item.getContentType();
+                    final String suffix = (ct == null || "text/plain".equals(ct)) ? "\"" : "";
+                    System.out.println("FileItem #" + (i+1) +
+                            " -> contentType=" + ct +
+                            ", name=" + item.getName() +
+                            ", fieldName=" + item.getFieldName() +
+                            ", size=" + item.getSize() +
+                            ", data=" + suffix + item.getString() + suffix);
+                }
             }
         }
         return new Request(requestLine, headers, postParameters, multipart, inputStream);
@@ -154,6 +154,9 @@ public class Request {
         return parseQueryParams(post);
     }
 
+    private static List<FileItem> parseMultipart(String contentTypeLine, String body) {
+        return MyFileItem.parseFileItems(contentTypeLine, body);
+    }
 //    private static List<FileItem> parseMultipart(
 //            String contentType, int contentLength, InputStream inputStream) {
 //        System.out.println("\t\tIT'S MULTIPART !!!");
