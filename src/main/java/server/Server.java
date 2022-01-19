@@ -6,25 +6,23 @@ import java.net.Socket;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentSkipListMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 public class Server {
-    private final int THREADS = 64;
     private final String FILES_DIR = "public";
     private final List<String> validPaths;
     private final ExecutorService pool;
     protected final Map<String, Handler> handlers;
 
-    public Server() {
+    public Server(int threadPoolSize) {
         validPaths = getFileList();
-        pool = Executors.newFixedThreadPool(THREADS);
-        handlers = new ConcurrentSkipListMap<>();
+        pool = Executors.newFixedThreadPool(threadPoolSize);
+        handlers = new ConcurrentHashMap<>();
     }
 
     public void listen(int port) {

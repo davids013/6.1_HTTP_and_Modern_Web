@@ -1,5 +1,15 @@
 package server;
 
+import org.apache.commons.fileupload.*;
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
+
+import javax.servlet.http.HttpServletRequest;
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -9,57 +19,43 @@ public class Request {
     private static final String LINE_SEPARATOR = "\r\n";
     private static final String HEADER_SEPARATOR = ": ";
     private static final String METHOD_SEPARATOR = " ";
+    private static final String QUERY_SEPARATOR = "?";
+    private static final String EMPTY_PART_SYMBOL = "ND";
     private final String method;
     private final String requestLine;
     private final String path;
     private final String httpVersion;
     private final Map<String, String> headers;
-    private final String body;
+    private final List<NameValuePair> queryParams;
+    private final List<NameValuePair> postParams;
+    private final List<FileItem> fileItems;
 
-    public Request(String requestLine, Map<String, String> headers, String body) {
+    private Request(String requestLine, Map<String, String> headers,
+                    List<NameValuePair> postParams, List<FileItem> fileItems, InputStream inputStream) {
         this.requestLine = requestLine;
+        this.headers = headers == null ? new HashMap<>() : headers;
+        this.postParams = postParams == null ? new ArrayList<>() : postParams;
+        this.fileItems = fileItems == null ? new ArrayList<>() : fileItems;
         final String[] parts = requestLine.split(METHOD_SEPARATOR);
         if (parts.length == 3) {
             method = parts[0];
-            path = parts[1];
+            if (!parts[1].contains(QUERY_SEPARATOR)) {
+                path = parts[1];
+                queryParams = new ArrayList<>();
+            } else {
+                String temp = parts[1];
+                path = temp.substring(0, temp.indexOf(QUERY_SEPARATOR));
+                temp = temp.substring(temp.indexOf(QUERY_SEPARATOR) + 1);
+                queryParams = parseQueryParams(temp);
+                System.out.println("Query list: " + queryParams);
+            }
             httpVersion = parts[2];
         } else {
-            this.method = null;
-            this.path = null;
-            httpVersion = "HTTP/1.1";
+            this.method = EMPTY_PART_SYMBOL;
+            this.path = EMPTY_PART_SYMBOL;
+            httpVersion = EMPTY_PART_SYMBOL;
+            queryParams = new ArrayList<>();
         }
-        this.headers = headers;
-        this.body = body;
-    }
-
-    public Request(String method, String path, Map<String, String> headers, String body) {
-        this.method = method;
-        this.path = path;
-        httpVersion = "HTTP/1.1";
-        requestLine = method + METHOD_SEPARATOR + path + METHOD_SEPARATOR + httpVersion;
-        this.headers = headers;
-        this.body = body;
-    }
-
-    public Request(String requestStr) {
-        if (requestStr.contains(METHOD_SEPARATOR)) {
-            final int requestLastIndex = (!requestStr.contains(LINE_SEPARATOR))
-                    ? requestStr.length()
-                    : requestStr.indexOf(LINE_SEPARATOR);
-            requestLine = requestStr.substring(0, requestLastIndex);
-        } else requestLine = null;
-        final String[] parts = requestLine.split(METHOD_SEPARATOR);
-        if (parts.length == 3) {
-            this.method = parts[0];
-            this.path = parts[1];
-            this.httpVersion = parts[2];
-        } else {
-            method = null;
-            path = null;
-            httpVersion = null;
-        }
-        this.headers = null;
-        this.body = null;
     }
 
     public String getMethod() {
@@ -68,10 +64,6 @@ public class Request {
 
     public Map<String, String> getHeaders() {
         return headers;
-    }
-
-    public String getBody() {
-        return body;
     }
 
     public String getRequestLine() {
@@ -86,44 +78,106 @@ public class Request {
         return httpVersion;
     }
 
-    public static Request parseRequest(String requestStr) {
-        if (requestStr.contains(METHOD_SEPARATOR)) {
-            final String[] lines = requestStr.split(LINE_SEPARATOR);
-            final String requestLine = lines[0];
-            final List<String> keys = new ArrayList<>();
-            final List<String> values = new ArrayList<>();
-            if (requestStr.length() > requestLine.length() + 1) {
-                for (int i = 1; i < lines.length; i++) {
-                    if (lines[i].contains(HEADER_SEPARATOR)) {
-                        keys.add(lines[i].substring(0, lines[i].indexOf(HEADER_SEPARATOR)).trim());
-                        values.add(lines[i].substring(lines[i].indexOf(HEADER_SEPARATOR) + 1).trim());
-                    }
-                }
+    public List<NameValuePair> getQueryParams() {
+        return new ArrayList<>(queryParams);
+    }
+
+    public List<NameValuePair> getPostParams() {
+        return new ArrayList<>(postParams);
+    }
+
+    public String getPostParam(String name) {
+        for (NameValuePair nvp : postParams)
+            if (nvp.getName().equals(name)) return nvp.getValue();
+        return null;
+    }
+
+    public static Request fromInputStream(InputStream inputStream) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        char c;
+        while (!((c = (char) inputStream.read()) == '\n')) {
+            sb.append(c);
+        }
+        final String requestLine = sb.toString().trim();
+        sb.delete(0, sb.length() - 1);
+        System.out.println(">> " + requestLine);
+        if (requestLine.isBlank())
+            throw new IOException("Null requested!");
+        final String[] parts = requestLine.split(METHOD_SEPARATOR);
+        if (parts.length != 3) throw new IOException("Invalid request!");
+        final Map<String, String> headers = new HashMap<>();
+        String line = "test";
+        while (!line.isBlank()) {
+            while (!((c = (char) inputStream.read()) == '\n')) {
+                sb.append(c);
             }
-            final Map<String, String> headers = new HashMap<>();
-            for (int i = 0; i < keys.size(); i++) {
-                headers.put(keys.get(i), values.get(i));
+            line = sb.toString().trim();
+            sb.delete(0, sb.length() - 1);
+            if (!line.isBlank()) {
+                final int index = line.indexOf(HEADER_SEPARATOR);
+                final String key = line.substring(0, index);
+                final String value = line.substring(index + 2);
+                headers.put(key, value);
             }
-            int lastHeaderIndex = -1;
-            for (int i = 0; i < lines.length; i++) {
-                if (i != 0 && !lines[i].contains(HEADER_SEPARATOR)) {
-                    lastHeaderIndex = i;
-                    break;
-                }
+        }
+//        for (String key : headers.keySet()) System.out.println(key + " -> " + headers.get(key));
+        List<NameValuePair> postParameters = null;
+        List<FileItem> multipart = null;
+        if (headers.containsKey("Content-Type")) {
+            final String contentType = headers.get("Content-Type");
+            System.out.println("Content-Type -> " + contentType);
+            int size = 0;
+            if (headers.containsKey("Content-Length")) {
+                size = Integer.parseInt(headers.get("Content-Length"));
+                System.out.println("Content-Length -> " + size);
             }
-            final String body;
-            if (lastHeaderIndex == -1) {
-                body = null;
-            } else {
-                final StringBuilder sb = new StringBuilder();
-                for (int i = lastHeaderIndex; i < lines.length; i++) {
-                    sb.append(lines[i]);
-                    if (i < lines.length - 1) sb.append(LINE_SEPARATOR);
-                }
-                body = sb.toString();
+            byte[] bytes = new byte[size];
+            char[] chars = new char[size];
+            try {
+                inputStream.read(bytes, 0, size);
+                for (int i = 0; i < bytes.length; i++) chars[i] = (char) bytes[i];
+            } catch (IOException e) {
+                e.printStackTrace();
             }
-            return new Request(requestLine, headers, body);
-        } else
-            return null;
+            final String body = new String(chars);
+            if (contentType.equals("application/x-www-form-urlencoded")) {
+                postParameters = parsePostParams(body);
+                System.out.println("Post params x-www-form: " + postParameters);
+            } else if (contentType.contains("multipart/form-data")) {
+                System.out.println(body);
+                multipart = parseMultipart(contentType, size, inputStream);
+            }
+        }
+        return new Request(requestLine, headers, postParameters, multipart, inputStream);
+    }
+
+    public static List<NameValuePair> parseQueryParams(String query) {
+        if (query.contains(QUERY_SEPARATOR))
+            query = query.substring(query.indexOf(QUERY_SEPARATOR) + 1);
+        return URLEncodedUtils.parse(query, StandardCharsets.UTF_8);
+    }
+
+    public static List<NameValuePair> parsePostParams(String post) {
+        return parseQueryParams(post);
+    }
+
+    private static List<FileItem> parseMultipart(
+            String contentType, int contentLength, InputStream inputStream) {
+        System.out.println("\t\tIT'S MULTIPART !!!");
+        final RequestContext context = new Context(contentType, contentLength, inputStream);
+        System.out.println("\tContext created");
+        final FileUploadBase fileUpload = new FileUpload();
+        System.out.println("\tFileUpload created");
+        List<FileItem> files = null;
+        try {
+//            TODO: понять, почему не парсится
+            files = fileUpload.parseRequest(context);
+        } catch (FileUploadException e) {
+            System.err.println("FileUploadException");
+            e.printStackTrace();
+        }
+        System.out.println("\t\tFILEITEMS:");
+        if (files != null) files.forEach(System.out::println);
+        return files;
     }
 }
