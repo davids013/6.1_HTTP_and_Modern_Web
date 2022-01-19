@@ -93,22 +93,34 @@ public class Request {
     }
 
     public static Request fromInputStream(InputStream inputStream) throws IOException {
-        final BufferedReader in = new BufferedReader(new InputStreamReader(inputStream));
-        final String requestLine = in.readLine();
+        StringBuilder sb = new StringBuilder();
+        char c;
+        while (!((c = (char) inputStream.read()) == '\n')) {
+            sb.append(c);
+        }
+        final String requestLine = sb.toString().trim();
+        sb.delete(0, sb.length() - 1);
         System.out.println(">> " + requestLine);
-        if (requestLine == null)
+        if (requestLine.isBlank())
             throw new IOException("Null requested!");
         final String[] parts = requestLine.split(METHOD_SEPARATOR);
         if (parts.length != 3) throw new IOException("Invalid request!");
         final Map<String, String> headers = new HashMap<>();
-        String line;
-        while (!(line = in.readLine()).isEmpty()) {
-            final int index = line.indexOf(HEADER_SEPARATOR);
-            final String key = line.substring(0, index);
-            final String value = line.substring(index + 2);
-            headers.put(key, value);
+        String line = "test";
+        while (!line.isBlank()) {
+            while (!((c = (char) inputStream.read()) == '\n')) {
+                sb.append(c);
+            }
+            line = sb.toString().trim();
+            sb.delete(0, sb.length() - 1);
+            if (!line.isBlank()) {
+                final int index = line.indexOf(HEADER_SEPARATOR);
+                final String key = line.substring(0, index);
+                final String value = line.substring(index + 2);
+                headers.put(key, value);
+            }
         }
-//        headers.keySet().forEach((key) -> System.out.println(key + " -> " + headers.get(key)));
+//        for (String key : headers.keySet()) System.out.println(key + " -> " + headers.get(key));
         List<NameValuePair> postParameters = null;
         List<FileItem> multipart = null;
         if (headers.containsKey("Content-Type")) {
@@ -119,26 +131,21 @@ public class Request {
                 size = Integer.parseInt(headers.get("Content-Length"));
                 System.out.println("Content-Length -> " + size);
             }
+            byte[] bytes = new byte[size];
+            char[] chars = new char[size];
+            try {
+                inputStream.read(bytes, 0, size);
+                for (int i = 0; i < bytes.length; i++) chars[i] = (char) bytes[i];
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            final String body = new String(chars);
             if (contentType.equals("application/x-www-form-urlencoded")) {
-                char[] chars = new char[size];
-                try {
-                    in.read(chars, 0, size);
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-                final String body = new String(chars);
                 postParameters = parsePostParams(body);
                 System.out.println("Post params x-www-form: " + postParameters);
-//            } else if (contentType.contains("multipart/form-data")) {
-//                char[] chars = new char[size];
-//                try {
-//                    in.read(chars, 0, size);
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//                final String body = new String(chars);
-//                System.out.println(body);
-////                multipart = parseMultipart(contentType, size, inputStream);
+            } else if (contentType.contains("multipart/form-data")) {
+                System.out.println(body);
+                multipart = parseMultipart(contentType, size, inputStream);
             }
         }
         return new Request(requestLine, headers, postParameters, multipart, inputStream);
@@ -154,22 +161,23 @@ public class Request {
         return parseQueryParams(post);
     }
 
-//    private static List<FileItem> parseMultipart(
-//            String contentType, int contentLength, InputStream inputStream) {
-//        System.out.println("\t\tIT'S MULTIPART !!!");
-//        final RequestContext context = new Context(contentType, contentLength, inputStream);
-//        System.out.println("\tContext created");
-//        final FileUploadBase fileUpload = new FileUpload();
-//        System.out.println("\tFileUpload created");
-//        List<FileItem> files = null;
-//        try {
-//            files = fileUpload.parseRequest(context);
-//        } catch (FileUploadException e) {
-//            System.err.println("FileUploadException");
-//            e.printStackTrace();
-//        }
-//        System.out.println("\t\tFILEITEMS:");
-//        files.forEach(System.out::println);
-//        return files;
-//    }
+    private static List<FileItem> parseMultipart(
+            String contentType, int contentLength, InputStream inputStream) {
+        System.out.println("\t\tIT'S MULTIPART !!!");
+        final RequestContext context = new Context(contentType, contentLength, inputStream);
+        System.out.println("\tContext created");
+        final FileUploadBase fileUpload = new FileUpload();
+        System.out.println("\tFileUpload created");
+        List<FileItem> files = null;
+        try {
+//            TODO: понять, почему не парсится
+            files = fileUpload.parseRequest(context);
+        } catch (FileUploadException e) {
+            System.err.println("FileUploadException");
+            e.printStackTrace();
+        }
+        System.out.println("\t\tFILEITEMS:");
+        if (files != null) files.forEach(System.out::println);
+        return files;
+    }
 }
